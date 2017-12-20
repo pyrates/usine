@@ -1,0 +1,2 @@
+minicli==0.2.0
+paramiko==2.4.0
