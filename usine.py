@@ -106,6 +106,7 @@ class Client:
         self.prefix = ''
         self.sudo = False
         self.cd = None
+        self.env = {}
 
     def open(self):
         self._client.connect(hostname=self.hostname, username=self.username)
@@ -116,9 +117,13 @@ class Client:
 
     def execute(self, cmd, **kwargs):
         channel = self._transport.open_session()
+        prefix = self.prefix
         if self.cd:
             cmd = f'cd {self.cd}; {cmd}'
-        cmd = self.format(self.prefix + ' sh -c "' + cmd + '"')
+        if self.env:
+            env = ' '.join(f'{k}={v}' for k, v in self.env.items())
+            prefix = f'{prefix} {env}'
+        cmd = self.format(prefix + " sh -c '" + cmd + "'")
         print(cmd)
         channel.exec_command(cmd)
         ret = Status(channel)
@@ -174,3 +179,10 @@ def cd(path='~'):
     client.cd = path
     yield
     client.cd = None
+
+
+@contextmanager
+def env(**kwargs):
+    client.env = kwargs
+    yield
+    client.env = {}
