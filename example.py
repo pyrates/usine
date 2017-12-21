@@ -9,7 +9,7 @@ def create_bar():
             mkdir('/tmp/foo/bar')
         else:
             print('/tmp/foo does not exist')
-            print(ls('tamer'))
+            ls('tamer')
 
 
 @minicli.cli
