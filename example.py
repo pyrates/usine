@@ -1,4 +1,6 @@
-from usine import sudo, exists, mkdir, init, ls, cd, env, run
+from io import StringIO
+
+from usine import sudo, exists, mkdir, init, ls, cd, env, run, put
 import minicli
 
 
@@ -18,6 +20,12 @@ def pass_env():
         print(run('echo $FOO'))
     with sudo(user='tamer'), env(FOO='baz'):
         print(run('echo $FOO'))
+
+
+@minicli.cli
+def put_file():
+    put(StringIO('foobarbaz'), '/tmp/foobarbaz')
+    run('cat /tmp/foobarbaz')
 
 
 if __name__ == '__main__':

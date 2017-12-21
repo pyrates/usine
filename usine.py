@@ -2,10 +2,12 @@ import inspect
 import string
 from contextlib import contextmanager
 from getpass import getuser
+from hashlib import md5
 from pathlib import Path
 
 from paramiko.client import SSHClient, WarningPolicy
 from paramiko.config import SSHConfig
+from progressist import ProgressBar
 
 client = None
 
@@ -115,6 +117,7 @@ class Client:
         self.sudo = False
         self.cd = None
         self.env = {}
+        self._sftp = None
 
     def open(self):
         print(f'Connecting to {self.username}@{self.hostname}')
@@ -168,6 +171,12 @@ class Client:
     def format(self, tpl):
         return self.formatter.vformat(tpl, None, self.context)
 
+    @property
+    def sftp(self):
+        if not self._sftp:
+            self._sftp = self._client.open_sftp()
+        return self._sftp
+
 
 @contextmanager
 def init(host):
@@ -198,6 +207,26 @@ def chown(mode, path, recursive=True, preserve_root=True):
 @formattable
 def ls(path, all=True, human_readable=True, size=True, list=True):
     return run('ls {all:B} {human_readable:B} {size:B} {list:S} {path}')
+
+
+def mv(src, dest):
+    return run(f'mv {src} {dest}')
+
+
+def put(local, remote, owner=None):
+    bar = ProgressBar(prefix=f'{local} => {remote}')
+    tmp = str(Path('/tmp') / md5(remote.encode()).hexdigest())
+    func = client.sftp.putfo if hasattr(local, 'read') else client.sftp.put
+    func(local, tmp, lambda done, total: bar.update(done=done, total=total))
+    mv(tmp, remote)
+    if owner:
+        chown(owner, remote)
+
+
+def get(remote, local):
+    bar = ProgressBar(prefix=f'{local} => {remote}')
+    func = client.sftp.getfo if hasattr(local, 'write') else client.sftp.get
+    func(remote, local, lambda done, total: bar.update(done=done, total=total))
 
 
 @contextmanager
