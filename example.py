@@ -1,4 +1,4 @@
-from usine import sudo, exists, mkdir, init
+from usine import sudo, exists, mkdir, init, ls
 import minicli
 
 
@@ -7,8 +7,11 @@ def create_bar():
     with sudo(user='tamer'):
         if exists('/foo'):
             mkdir('/foo/bar')
+        else:
+            print('/foo does not exist')
+            print(ls('/srv/tamer'))
 
 
 if __name__ == '__main__':
-    init('foo.bar')
+    init('woodland')
     minicli.run()
