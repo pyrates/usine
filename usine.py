@@ -1,5 +1,6 @@
 import inspect
 import string
+from contextlib import contextmanager
 from getpass import getuser
 from pathlib import Path
 
@@ -149,22 +150,15 @@ def ls(path, all=True, human_readable=True, size=True, list=True):
     return run('ls {all:B} {human_readable:B} {size:B} {list:S} {path}')
 
 
-class sudo:
-
-    def __init__(self, set_home=True, preserve_env=True, user=None,
-                 login=True):
-
-        self.context = {
-            'set_home': set_home,
-            'preserve_env': preserve_env,
-            'user': user,
-            'login': login
-        }
-        self.prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
-
-    def __enter__(self, *args, **kwargs):
-        client.prefix = self.prefix
-        client.context.update(self.context)
-
-    def __exit__(self, type, value, traceback):
-        client.prefix = ''
+@contextmanager
+@formattable
+def sudo(set_home=True, preserve_env=True, user=None, login=True):
+    client.prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
+    client.context.update({
+        'set_home': set_home,
+        'preserve_env': preserve_env,
+        'user': user,
+        'login': login
+    })
+    yield
+    client.prefix = ''
