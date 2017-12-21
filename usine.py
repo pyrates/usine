@@ -122,7 +122,7 @@ class Client:
         self._transport = self._client.get_transport()
 
     def close(self):
-        self.client.close()
+        self._client.close()
 
     def parse_host(self, host_string):
         user_hostport = host_string.rsplit('@', 1)
@@ -169,9 +169,12 @@ class Client:
         return self.formatter.vformat(tpl, None, self.context)
 
 
+@contextmanager
 def init(host):
     global client
     client = Client(host)
+    yield client
+    client.close()
 
 
 def run(cmd):

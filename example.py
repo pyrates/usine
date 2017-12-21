@@ -21,5 +21,5 @@ def pass_env():
 
 
 if __name__ == '__main__':
-    init('woodland')
-    minicli.run()
+    with init('woodland'):
+        minicli.run()
