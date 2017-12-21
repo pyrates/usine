@@ -5,10 +5,10 @@ import minicli
 @minicli.cli
 def create_bar():
     with sudo(user='tamer'):
-        if exists('/foo'):
-            mkdir('/foo/bar')
+        if exists('/tmp/foo'):
+            mkdir('/tmp/foo/bar')
         else:
-            print('/foo does not exist')
+            print('/tmp/foo does not exist')
             print(ls('/srv/tamer'))
 
 

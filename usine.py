@@ -1,3 +1,5 @@
+import inspect
+import string
 from getpass import getuser
 from pathlib import Path
 
@@ -7,12 +9,73 @@ from paramiko.config import SSHConfig
 client = None
 
 
+class RemoteError(Exception):
+    pass
+
+
+class Formatter(string.Formatter):
+    """
+    Allow to have some custom formatting types.
+
+    B: boolean attribute
+    S: small boolean attribute
+    V: k=v like attribute
+    """
+
+    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,
+                 auto_arg_index=0):
+        result = []
+        for literal_text, name, spec, conversion in self.parse(format_string):
+
+            # output the literal text
+            if literal_text:
+                result.append(literal_text)
+
+            # if there's a field, output it
+            if name:
+                # given the name, find the object it references
+                #  and the argument it came from
+                obj, _ = self.get_field(name, args, kwargs)
+                obj = self.convert_field(obj, conversion)
+
+                value = ''
+                if spec == 'B':
+                    if obj:
+                        value = '--' + name.replace('_', '-')
+                elif spec == 'S':
+                    if obj:
+                        value = '-' + name[0]
+                elif spec == 'V':
+                    value = '--' + name.replace('_', '-') + '=' + str(obj)
+                else:
+                    value = self.format_field(obj, spec)
+
+                # format the object and append to the result
+                result.append(value)
+
+        return ''.join(result), auto_arg_index
+
+
+def formattable(func):
+
+    def wrapper(*args, **kwargs):
+        spec = inspect.signature(func)
+        for idx, (name, param) in enumerate(spec.parameters.items()):
+            if idx < len(args):
+                client.context[name] = args[idx]
+            else:
+                client.context[name] = kwargs.get(name, param.default)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class Status:
 
     def __init__(self, channel):
         stdout = channel.makefile('rb', -1)
         stderr = channel.makefile_stderr('rb', -1)
-        self.stderr = ''.join(str(lines) for lines in stderr.readlines())
+        self.stderr = stderr.read().decode()
         self.stdout = stdout.read().decode()
         self.code = channel.recv_exit_status()
 
@@ -38,22 +101,29 @@ class Client:
         self._client.load_system_host_keys()
         self._client.set_missing_host_key_policy(WarningPolicy())
         self.open()
+        self.formatter = Formatter()
+        self.prefix = ''
 
     def open(self):
-        print(self.hostname, self.username)
         self._client.connect(hostname=self.hostname, username=self.username)
         self._transport = self._client.get_transport()
 
     def close(self):
         self.client.close()
 
-    def execute(self, cmd):
-        print(cmd)
+    def execute(self, cmd, **kwargs):
         channel = self._transport.open_session()
+        cmd = self.format(self.prefix + ' ' + cmd)
+        print(cmd)
         channel.exec_command(cmd)
         ret = Status(channel)
         channel.close()
+        if ret.stderr:
+            raise RemoteError(ret.stderr)
         return ret
+
+    def format(self, tpl):
+        return self.formatter.vformat(tpl, None, self.context)
 
 
 def init(host):
@@ -62,33 +132,39 @@ def init(host):
 
 
 def run(cmd):
-    if client.context['sudo']:
-        cmd = f'sudo {cmd}'
     return client.execute(cmd)
 
 
 def exists(path):
-    return bool(run(f'if [ -f "{path}" ]; then echo 1; fi').stdout)
+    return bool(run(f'sh -c "if [ -f "{path}" ]; then echo 1; fi"').stdout)
 
 
+@formattable
 def mkdir(path, parents=True, mode=None):
-    p = '--parents' if parents else ''
-    m = f'--mode {mode}' if mode else ''
-    return run(f'mkdir {p} {m} {path}')
+    return run('mkdir {parents} {mode} {path}')
 
 
-def ls(path):
-    return run(f'ls -lisah {path}')
+@formattable
+def ls(path, all=True, human_readable=True, size=True, list=True):
+    return run('ls {all:B} {human_readable:B} {size:B} {list:S} {path}')
 
 
 class sudo:
 
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+    def __init__(self, set_home=True, preserve_env=True, user=None,
+                 login=True):
+
+        self.context = {
+            'set_home': set_home,
+            'preserve_env': preserve_env,
+            'user': user,
+            'login': login
+        }
+        self.prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
 
     def __enter__(self, *args, **kwargs):
-        client.context['sudo'] = self.kwargs
+        client.prefix = self.prefix
+        client.context.update(self.context)
 
     def __exit__(self, type, value, traceback):
-        del client.context['sudo']
+        client.prefix = ''
