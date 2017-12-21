@@ -104,6 +104,8 @@ class Client:
         self.open()
         self.formatter = Formatter()
         self.prefix = ''
+        self.sudo = False
+        self.cd = None
 
     def open(self):
         self._client.connect(hostname=self.hostname, username=self.username)
@@ -114,7 +116,9 @@ class Client:
 
     def execute(self, cmd, **kwargs):
         channel = self._transport.open_session()
-        cmd = self.format(self.prefix + ' ' + cmd)
+        if self.cd:
+            cmd = f'cd {self.cd}; {cmd}'
+        cmd = self.format(self.prefix + ' sh -c "' + cmd + '"')
         print(cmd)
         channel.exec_command(cmd)
         ret = Status(channel)
@@ -137,7 +141,7 @@ def run(cmd):
 
 
 def exists(path):
-    return bool(run(f'sh -c "if [ -f "{path}" ]; then echo 1; fi"').stdout)
+    return bool(run(f'if [ -f "{path}" ]; then echo 1; fi').stdout)
 
 
 @formattable
@@ -153,7 +157,8 @@ def ls(path, all=True, human_readable=True, size=True, list=True):
 @contextmanager
 @formattable
 def sudo(set_home=True, preserve_env=True, user=None, login=True):
-    client.prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
+    prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
+    client.prefix += prefix
     client.context.update({
         'set_home': set_home,
         'preserve_env': preserve_env,
@@ -161,4 +166,11 @@ def sudo(set_home=True, preserve_env=True, user=None, login=True):
         'login': login
     })
     yield
-    client.prefix = ''
+    client.prefix.replace(prefix, '')
+
+
+@contextmanager
+def cd(path='~'):
+    client.cd = path
+    yield
+    client.cd = None
