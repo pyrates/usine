@@ -1,5 +1,6 @@
 import inspect
 import string
+import sys
 from contextlib import contextmanager
 from io import StringIO
 from getpass import getuser
@@ -139,12 +140,10 @@ def formattable(func):
 
 class Status:
 
-    def __init__(self, channel):
-        stdout = channel.makefile('rb', -1)
-        stderr = channel.makefile_stderr('rb', -1)
+    def __init__(self, stdout, stderr, exit_status):
         self.stderr = stderr.read().decode()
         self.stdout = stdout.read().decode()
-        self.code = channel.recv_exit_status()
+        self.code = exit_status
 
     def __str__(self):
         return self.stdout
@@ -224,7 +223,15 @@ class Client:
         cmd = self.format(prefix + " sh -c '" + cmd + "'")
         print(gray(cmd))
         channel.exec_command(cmd)
-        ret = Status(channel)
+        stdout = channel.makefile('r', -1)
+        stderr = channel.makefile_stderr('r', -1)
+        buf = b''
+        while not channel.exit_status_ready():
+            buf += stdout.read(1)
+            if buf.endswith(b'\n'):
+                sys.stdout.write(buf.decode())
+                buf = b''
+        ret = Status(stdout, stderr, channel.recv_exit_status())
         channel.close()
         if ret.code:
             raise RemoteError(ret.stderr)
