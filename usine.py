@@ -19,20 +19,24 @@ def gray(s):
     return f'\x1b[1;30m{s}\x1b[0m'
 
 
+def red(s):
+    return f'\x1b[1;41m{s}\x1b[0m'
+
+
 class RemoteError(Exception):
     pass
 
 
 class Config:
 
-    def __init__(self, what=None):
-        if isinstance(what, Config):
-            what = what.what
-        super().__setattr__('what', what or {})
+    def __init__(self, value=None):
+        if isinstance(value, Config):
+            value = value.value
+        super().__setattr__('value', value or {})
 
     def get(self, key, default=None):
         try:
-            return Config(self.what.get(key, default))
+            return Config(self.value.get(key, default))
         except AttributeError:
             return Config(default)
 
@@ -41,29 +45,35 @@ class Config:
 
     def __getattr__(self, key):
         try:
-            return Config(self.what.get(key))
+            return Config(self.value.get(key))
         except AttributeError:
             return Config()
 
     def __setattr__(self, key, value):
-        self.what[key] = value
+        self.value[key] = value
 
     def __str__(self):
-        return str(self.what)
+        return str(self.value)
 
     def __eq__(self, other):
-        return other == self.what
+        return other == self.value
 
     # https://eev.ee/blog/2012/03/24/python-faq-equality/
     # No way to override "is" behaviour, so no way to do "config.key is None"…
     def __bool__(self):
-        return bool(self.what)
+        return bool(self.value)
 
     def __hash__(self):
-        return hash(self.what)
+        return hash(self.value)
+
+    def __iter__(self):
+        return iter(self.value)
+
+    def items(self):
+        return self.value.items()
 
     def update(self, other):
-        self.what.update(other)
+        self.value.update(other)
 
 
 config = Config()  # singleton.
@@ -162,10 +172,11 @@ class Client:
         hostname = parsed.get('hostname')
         username = parsed.get('username')
         if configpath:
-            yaml_conf = yaml.load(configpath)
-            if hostname in yaml_conf:
-                yaml_conf.update(yaml_conf[hostname])
-            config.update(yaml_conf)
+            with Path(configpath).open() as fd:
+                yaml_conf = yaml.load(fd)
+                if hostname in yaml_conf:
+                    yaml_conf.update(yaml_conf[hostname])
+                config.update(yaml_conf)
         with (Path.home() / '.ssh/config').open() as fd:
             ssh_config.parse(fd)
         ssh_config = ssh_config.lookup(hostname)
@@ -226,17 +237,21 @@ class Client:
         stdout = channel.makefile('r', -1)
         stderr = channel.makefile_stderr('r', -1)
         buf = b''
-        while not channel.exit_status_ready():
-            buf += stdout.read(1)
+        while True:
+            data = stdout.read(1)
+            if not data:
+                if buf:
+                    sys.stdout.write(buf.decode())
+                break
+            buf += data
             if buf.endswith(b'\n'):
                 sys.stdout.write(buf.decode())
                 buf = b''
         ret = Status(stdout, stderr, channel.recv_exit_status())
         channel.close()
         if ret.code:
-            raise RemoteError(ret.stderr)
-        if ret.stdout:
-            print(ret.stdout)
+            red(ret.stderr)
+            sys.exit(ret.code)
         return ret
 
     def format(self, tpl):
@@ -250,9 +265,9 @@ class Client:
 
 
 @contextmanager
-def init(host):
+def connect(*args, **kwargs):
     global client
-    client = Client(host)
+    client = Client(*args, **kwargs)
     yield client
     client.close()
 
@@ -295,7 +310,7 @@ def put(local, remote, owner=None):
 
 
 def get(remote, local):
-    bar = ProgressBar(prefix=f'{local} => {remote}')
+    bar = ProgressBar(prefix=f'{remote} => {local}')
     func = client.sftp.getfo if hasattr(local, 'write') else client.sftp.get
     func(remote, local, lambda done, total: bar.update(done=done, total=total))
 

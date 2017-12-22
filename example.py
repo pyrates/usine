@@ -1,7 +1,7 @@
 from io import StringIO
 
-from usine import sudo, exists, mkdir, init, ls, cd, env, run, put
 import minicli
+from usine import cd, connect, env, exists, ls, mkdir, put, run, sudo
 
 
 @minicli.cli
@@ -26,8 +26,10 @@ def pass_env():
 def put_file():
     put(StringIO('foobarbaz'), '/tmp/foobarbaz')
     run('cat /tmp/foobarbaz')
+    put('README.md', '/tmp/foobarbaz')
+    run('cat /tmp/foobarbaz')
 
 
 if __name__ == '__main__':
-    with init('woodland'):
+    with connect('woodland'):
         minicli.run()
