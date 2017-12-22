@@ -1,6 +1,7 @@
 import inspect
 import string
 from contextlib import contextmanager
+from io import StringIO
 from getpass import getuser
 from hashlib import md5
 from pathlib import Path
@@ -8,6 +9,7 @@ from pathlib import Path
 from paramiko.client import SSHClient, WarningPolicy
 from paramiko.config import SSHConfig
 from progressist import ProgressBar
+import yaml
 
 client = None
 
@@ -18,6 +20,63 @@ def gray(s):
 
 class RemoteError(Exception):
     pass
+
+
+class Config:
+
+    def __init__(self, what=None):
+        if isinstance(what, Config):
+            what = what.what
+        super().__setattr__('what', what or {})
+
+    def get(self, key, default=None):
+        try:
+            return Config(self.what.get(key, default))
+        except AttributeError:
+            return Config(default)
+
+    def __getitem__(self, key):
+        return self.__getattr__(key)
+
+    def __getattr__(self, key):
+        try:
+            return Config(self.what.get(key))
+        except AttributeError:
+            return Config()
+
+    def __setattr__(self, key, value):
+        self.what[key] = value
+
+    def __str__(self):
+        return str(self.what)
+
+    def __eq__(self, other):
+        return other == self.what
+
+    # https://eev.ee/blog/2012/03/24/python-faq-equality/
+    # No way to override "is" behaviour, so no way to do "config.key is None"…
+    def __bool__(self):
+        return bool(self.what)
+
+    def __hash__(self):
+        return hash(self.what)
+
+    def update(self, other):
+        self.what.update(other)
+
+
+config = Config()  # singleton.
+
+
+class Template(string.Template):
+    # Default delimiter ($) clashes at least with Nginx DSL.
+    delimiter = '$$'
+
+
+def template(path, **context):
+    with Path(path).open() as f:
+        template = Template(f.read())
+        return StringIO(template.substitute(**context))
 
 
 class Formatter(string.Formatter):
@@ -98,14 +157,19 @@ class Client:
 
     context = {}
 
-    def __init__(self, hostname):
-        config = SSHConfig()
+    def __init__(self, hostname, configpath=None):
+        ssh_config = SSHConfig()
         parsed = self.parse_host(hostname)
         hostname = parsed.get('hostname')
         username = parsed.get('username')
+        if configpath:
+            yaml_conf = yaml.load(configpath)
+            if hostname in yaml_conf:
+                yaml_conf.update(yaml_conf[hostname])
+            config.update(yaml_conf)
         with (Path.home() / '.ssh/config').open() as fd:
-            config.parse(fd)
-        ssh_config = config.lookup(hostname)
+            ssh_config.parse(fd)
+        ssh_config = ssh_config.lookup(hostname)
         self.hostname = ssh_config['hostname']
         self.username = username or ssh_config.get('user', getuser())
         self._client = SSHClient()
