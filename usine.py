@@ -318,9 +318,11 @@ def get(remote, local):
 
 @contextmanager
 @formattable
-def sudo(set_home=True, preserve_env=True, user=None, login=True):
+def sudo(set_home=True, preserve_env=True, user=None, login=None):
     prefix = ('sudo {set_home:bool} {preserve_env:bool} {user:equal} '
               '{login:bool}')
+    if login is None:
+        login = user is not None
     if prefix not in client.prefix:
         client.prefix += prefix
         client.context.update({
