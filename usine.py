@@ -116,13 +116,13 @@ class Formatter(string.Formatter):
                 obj = self.convert_field(obj, conversion)
 
                 value = ''
-                if spec == 'B':
+                if spec == 'bool':
                     if obj:
                         value = '--' + name.replace('_', '-')
-                elif spec == 'S':
+                elif spec == 'initial':
                     if obj:
                         value = '-' + name[0]
-                elif spec == 'V':
+                elif spec == 'equal':
                     if obj:
                         value = '--' + name.replace('_', '-') + '=' + str(obj)
                 else:
@@ -282,17 +282,18 @@ def exists(path):
 
 @formattable
 def mkdir(path, parents=True, mode=None):
-    return run('mkdir {parents:B} {mode:V} {path}')
+    return run('mkdir {parents:bool} {mode:equal} {path}')
 
 
 @formattable
 def chown(mode, path, recursive=True, preserve_root=True):
-    return run('chown {recursive:B} {mode} {path}')
+    return run('chown {recursive:bool} {mode} {path}')
 
 
 @formattable
 def ls(path, all=True, human_readable=True, size=True, list=True):
-    return run('ls {all:B} {human_readable:B} {size:B} {list:S} {path}')
+    return run('ls {all:bool} {human_readable:bool} {size:bool} {list:initial}'
+               ' {path}')
 
 
 def mv(src, dest):
@@ -318,7 +319,8 @@ def get(remote, local):
 @contextmanager
 @formattable
 def sudo(set_home=True, preserve_env=True, user=None, login=True):
-    prefix = 'sudo {set_home:B} {preserve_env:B} {user:V} {login:B}'
+    prefix = ('sudo {set_home:bool} {preserve_env:bool} {user:equal} '
+              '{login:bool}')
     if prefix not in client.prefix:
         client.prefix += prefix
         client.context.update({
