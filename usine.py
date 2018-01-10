@@ -266,9 +266,17 @@ class Client:
 
 @contextmanager
 def connect(*args, **kwargs):
+    enter(*args, **kwargs)
+    yield client
+    exit()
+
+
+def enter(*args, **kwargs):
     global client
     client = Client(*args, **kwargs)
-    yield client
+
+
+def exit():
     client.close()
 
 
