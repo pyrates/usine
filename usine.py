@@ -300,6 +300,11 @@ def mv(src, dest):
     return run(f'mv {src} {dest}')
 
 
+def cp(src, dest, interactive=False, recursive=True, link=False, update=False):
+    return run('cp {interactive:bool} {recursive:bool} {link:bool} '
+               '{update:bool} {src} {dest}')
+
+
 def put(local, remote, owner=None):
     bar = ProgressBar(prefix=f'{local} => {remote}')
     tmp = str(Path('/tmp') / md5(remote.encode()).hexdigest())
