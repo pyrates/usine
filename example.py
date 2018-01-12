@@ -1,7 +1,7 @@
 from io import StringIO
 
 import minicli
-from usine import cd, connect, env, exists, ls, mkdir, put, run, sudo
+from usine import cd, connect, env, exists, ls, mkdir, put, run, sudo, screen
 
 
 @minicli.cli
@@ -17,17 +17,25 @@ def create_bar():
 @minicli.cli
 def pass_env():
     with env(FOO='bar'):
-        print(run('echo $FOO'))
+        run('echo $FOO')
     with sudo(user='tamer'), env(FOO='baz'):
-        print(run('echo $FOO'))
+        run('echo $FOO')
 
 
 @minicli.cli
 def put_file():
-    put(StringIO('foobarbaz'), '/tmp/foobarbaz')
-    run('cat /tmp/foobarbaz')
-    put('README.md', '/tmp/foobarbaz')
-    run('cat /tmp/foobarbaz')
+    with sudo(user='tamer'):
+        put('README.md', '/tmp/foobarbaz')
+        ls('/tmp/foobarbaz')
+        run('cat /tmp/foobarbaz')
+        put(StringIO('foobarbaz'), '/tmp/foobarbaz')
+        run('cat /tmp/foobarbaz')
+
+
+@minicli.cli
+def with_screen(name='usine'):
+    with screen(name):
+        run('ping 8.8.8.8')
 
 
 if __name__ == '__main__':

@@ -187,9 +187,9 @@ class Client:
         self._client.set_missing_host_key_policy(WarningPolicy())
         self.open()
         self.formatter = Formatter()
-        self.prefix = ''
-        self.sudo = False
+        self.sudo = ''
         self.cd = None
+        self.screen = None
         self.env = {}
         self._sftp = None
 
@@ -225,13 +225,16 @@ class Client:
 
     def execute(self, cmd, **kwargs):
         channel = self._transport.open_session()
-        prefix = self.prefix
+        prefix = ''
         if self.cd:
             cmd = f'cd {self.cd}; {cmd}'
         if self.env:
-            env = ' '.join(f'{k}={v}' for k, v in self.env.items())
-            prefix = f'{prefix} {env}'
-        cmd = self.format(prefix + " sh -c '" + cmd + "'")
+            prefix = ' '.join(f'{k}={v}' for k, v in self.env.items())
+        if self.sudo:
+            prefix = f'{self.sudo} {prefix}'
+        cmd = self.format(f"{prefix} sh -c '{cmd}'")
+        if self.screen:
+            cmd = f'screen -dUS {self.screen} -m {cmd}'
         print(gray(cmd))
         channel.exec_command(cmd)
         stdout = channel.makefile('r', -1)
@@ -250,11 +253,11 @@ class Client:
                 proxy_stdout += buf.decode()
                 sys.stdout.write(buf.decode())
                 buf = b''
-        ret = Status(proxy_stdout, stderr.read().decode(),
+        ret = Status(proxy_stdout, stderr.read().decode().strip(),
                      channel.recv_exit_status())
         channel.close()
         if ret.code:
-            red(ret.stderr)
+            print(red(ret.stderr))
             sys.exit(ret.code)
         return ret
 
@@ -317,14 +320,16 @@ def cp(src, dest, interactive=False, recursive=True, link=False, update=False):
                '{update:bool} {src} {dest}')
 
 
-def put(local, remote, owner=None):
+def put(local, remote):
     bar = ProgressBar(prefix=f'{local} => {remote}')
     tmp = str(Path('/tmp') / md5(remote.encode()).hexdigest())
     func = client.sftp.putfo if hasattr(local, 'read') else client.sftp.put
     func(local, tmp, lambda done, total: bar.update(done=done, total=total))
-    mv(tmp, remote)
-    if owner:
-        chown(owner, remote)
+    user = client.context.get('user')
+    with sudo():  # Force reset user as the one used for the SSH connection.
+        mv(tmp, remote)
+        if user:
+            chown(user, remote)
 
 
 def get(remote, local):
@@ -340,16 +345,16 @@ def sudo(set_home=True, preserve_env=True, user=None, login=None):
               '{login:bool}')
     if login is None:
         login = user is not None
-    if prefix not in client.prefix:
-        client.prefix += prefix
-        client.context.update({
-            'set_home': set_home,
-            'preserve_env': preserve_env,
-            'user': user,
-            'login': login
-        })
+    previous = client.sudo
+    client.sudo = prefix
+    client.context.update({
+        'set_home': set_home,
+        'preserve_env': preserve_env,
+        'user': user,
+        'login': login
+    })
     yield
-    client.prefix.replace(prefix, '')
+    client.sudo = previous
 
 
 @contextmanager
@@ -364,3 +369,10 @@ def env(**kwargs):
     client.env = kwargs
     yield
     client.env = {}
+
+
+@contextmanager
+def screen(name='usine'):
+    client.screen = name
+    yield
+    client.screen = None
