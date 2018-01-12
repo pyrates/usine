@@ -151,8 +151,8 @@ def formattable(func):
 class Status:
 
     def __init__(self, stdout, stderr, exit_status):
-        self.stderr = stderr.read().decode()
-        self.stdout = stdout.read().decode()
+        self.stderr = stderr
+        self.stdout = stdout
         self.code = exit_status
 
     def __str__(self):
@@ -236,18 +236,22 @@ class Client:
         channel.exec_command(cmd)
         stdout = channel.makefile('r', -1)
         stderr = channel.makefile_stderr('r', -1)
+        proxy_stdout = ''
         buf = b''
         while True:
             data = stdout.read(1)
             if not data:
                 if buf:
+                    proxy_stdout += buf.decode()
                     sys.stdout.write(buf.decode())
                 break
             buf += data
             if buf.endswith(b'\n'):
+                proxy_stdout += buf.decode()
                 sys.stdout.write(buf.decode())
                 buf = b''
-        ret = Status(stdout, stderr, channel.recv_exit_status())
+        ret = Status(proxy_stdout, stderr.read().decode(),
+                     channel.recv_exit_status())
         channel.close()
         if ret.code:
             red(ret.stderr)
