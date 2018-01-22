@@ -138,12 +138,15 @@ def formattable(func):
 
     def wrapper(*args, **kwargs):
         spec = inspect.signature(func)
+        old_context = client.context.copy()
         for idx, (name, param) in enumerate(spec.parameters.items()):
             if idx < len(args):
                 client.context[name] = args[idx]
             else:
                 client.context[name] = kwargs.get(name, param.default)
-        return func(*args, **kwargs)
+        res = func(*args, **kwargs)
+        client.context = old_context
+        return res
 
     return wrapper
 
@@ -262,7 +265,11 @@ class Client:
         return ret
 
     def format(self, tpl):
-        return self.formatter.vformat(tpl, None, self.context)
+        try:
+            return self.formatter.vformat(tpl, None, self.context)
+        except KeyError as e:
+            print(red(f'Missing key {e}'))
+            sys.exit(1)
 
     @property
     def sftp(self):
@@ -339,22 +346,23 @@ def get(remote, local):
 
 
 @contextmanager
-@formattable
 def sudo(set_home=True, preserve_env=True, user=None, login=None):
     prefix = ('sudo {set_home:bool} {preserve_env:bool} {user:equal} '
               '{login:bool}')
     if login is None:
         login = user is not None
     previous = client.sudo
-    client.sudo = prefix
+    previous_context = client.context.copy()
     client.context.update({
         'set_home': set_home,
         'preserve_env': preserve_env,
         'user': user,
         'login': login
     })
+    client.sudo = prefix
     yield
     client.sudo = previous
+    client.context = previous_context
 
 
 @contextmanager
