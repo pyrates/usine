@@ -1,4 +1,5 @@
 import inspect
+import os
 import string
 import sys
 from contextlib import contextmanager
@@ -327,13 +328,32 @@ def cp(src, dest, interactive=False, recursive=True, link=False, update=False):
                '{update:bool} {src} {dest}')
 
 
-def put(local, remote):
-    bar = ProgressBar(prefix=f'{local} => {remote}')
-    tmp = str(Path('/tmp') / md5(remote.encode()).hexdigest())
-    func = client.sftp.putfo if hasattr(local, 'read') else client.sftp.put
-    func(local, tmp, lambda done, total: bar.update(done=done, total=total))
+def put(local, remote, force=False):
     user = client.context.get('user')
-    with sudo():  # Force reset user as the one used for the SSH connection.
+    if not hasattr(local, 'read'):
+        local = Path(local)
+        if local.is_dir():
+            with sudo():  # Force reset to SSH user.
+                mkdir(remote)
+                if user:
+                    chown(user, remote)
+            for path in local.rglob('*'):
+                relative_path = path.relative_to(local)
+                put(path, remote / relative_path)
+            return
+        if not force and exists(remote):
+            lstat = os.stat(str(local))
+            rstat = client.sftp.stat(str(remote))
+            if (lstat.st_size == rstat.st_size
+               and lstat.st_mtime <= rstat.st_mtime):
+                print(f'{local} => {remote}: SKIPPING (reason: up to date)')
+                return
+    bar = ProgressBar(prefix=f'{local} => {remote}')
+    tmp = str(Path('/tmp') / md5(str(remote).encode()).hexdigest())
+    func = client.sftp.putfo if hasattr(local, 'read') else client.sftp.put
+    func(local, tmp,
+         lambda done, total: bar.update(done=done, total=total))
+    with sudo():  # Force reset to SSH user.
         mv(tmp, remote)
         if user:
             chown(user, remote)
