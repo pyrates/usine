@@ -300,7 +300,11 @@ def run(cmd):
 
 
 def exists(path):
-    return bool(run(f'if [ -e "{path}" ]; then echo 1; fi').stdout)
+    try:
+        run(f'test -f {path}')
+    except SystemExit:
+        return False
+    return True
 
 
 @formattable
