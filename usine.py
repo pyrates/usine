@@ -172,6 +172,9 @@ class Client:
 
     def __init__(self, hostname, configpath=None):
         ssh_config = SSHConfig()
+        if not hostname:
+            print(red('"hostname" must be defined'))
+            sys.exit(1)
         parsed = self.parse_host(hostname)
         hostname = parsed.get('hostname')
         username = parsed.get('username')
@@ -301,7 +304,7 @@ def run(cmd):
 
 def exists(path):
     try:
-        run(f'test -f {path}')
+        run(f'test -e {path}')
     except SystemExit:
         return False
     return True
@@ -327,6 +330,7 @@ def mv(src, dest):
     return run(f'mv {src} {dest}')
 
 
+@formattable
 def cp(src, dest, interactive=False, recursive=True, link=False, update=False):
     return run('cp {interactive:bool} {recursive:bool} {link:bool} '
                '{update:bool} {src} {dest}')
