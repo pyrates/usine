@@ -1,5 +1,5 @@
 import pytest
-from usine import run, exists, mkdir, ls, mv, cp, env
+from usine import cd, cp, env, exists, ls, mkdir, mv, run
 
 
 def test_simple_run(connection):
@@ -114,3 +114,9 @@ def test_env():
     with env(FOO='pouet'):
         res = run('echo $FOO')
     assert res.stdout == 'pouet\n'
+
+
+def test_cd():
+    with cd('/tmp'):
+        res = run('pwd')
+    assert res.stdout == '/tmp\n'
