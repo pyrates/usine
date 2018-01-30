@@ -27,3 +27,13 @@ def test_config_str():
     config = Config()
     config.foo = 'bar'
     assert f'foo{config.foo}baz' == 'foobarbaz'
+
+
+def test_config_as_kwargs():
+    config = Config()
+    config.foo = 'bar'
+
+    def foo(**kwargs):
+        return kwargs
+
+    assert foo(**config) == config

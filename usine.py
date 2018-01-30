@@ -76,6 +76,9 @@ class Config:
     def update(self, other):
         self.value.update(other)
 
+    def keys(self):
+        return self.value.keys()
+
 
 config = Config()  # singleton.
 
