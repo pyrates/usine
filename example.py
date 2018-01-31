@@ -28,7 +28,7 @@ def put_file():
         put('README.md', '/tmp/foobarbaz')
         ls('/tmp/foobarbaz')
         run('cat /tmp/foobarbaz')
-        put(StringIO('foobarbaz'), '/tmp/foobarbaz')
+        put(StringIO('foobarbazéé'), '/tmp/foobarbaz')
         run('cat /tmp/foobarbaz')
 
 

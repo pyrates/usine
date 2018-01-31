@@ -3,15 +3,15 @@ import os
 import string
 import sys
 from contextlib import contextmanager
-from io import StringIO
 from getpass import getuser
 from hashlib import md5
+from io import BytesIO, StringIO
 from pathlib import Path
 
+import yaml
 from paramiko.client import SSHClient, WarningPolicy
 from paramiko.config import SSHConfig
 from progressist import ProgressBar
-import yaml
 
 client = None
 
@@ -359,11 +359,26 @@ def put(local, remote, force=False):
                and lstat.st_mtime <= rstat.st_mtime):
                 print(f'{local} => {remote}: SKIPPING (reason: up to date)')
                 return
-    bar = ProgressBar(prefix=f'{local} => {remote}')
+    elif isinstance(local, StringIO):
+        local = BytesIO(local.read().encode())
+    if hasattr(local, 'read'):
+        func = client.sftp.putfo
+        bar = ProgressBar(prefix=f'Sending to {remote}', animation='{spinner}',
+                          template='{prefix} {animation} {done:B}')
+    else:
+        bar = ProgressBar(prefix=f'{local} => {remote}')
+        func = client.sftp.put
     tmp = str(Path('/tmp') / md5(str(remote).encode()).hexdigest())
-    func = client.sftp.putfo if hasattr(local, 'read') else client.sftp.put
-    func(local, tmp,
-         lambda done, total: bar.update(done=done, total=total))
+    try:
+        func(local, tmp,
+             callback=lambda done, total: bar.update(done=done, total=total),
+             confirm=True)
+    except OSError as err:
+        print(red(f'Error while processing {remote}'))
+        print(red(err))
+        sys.exit(1)
+    if hasattr(local, 'read'):
+        bar.finish()
     with sudo():  # Force reset to SSH user.
         mv(tmp, remote)
         if user:
