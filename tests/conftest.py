@@ -1,7 +1,14 @@
 import os
+import sys
+from pathlib import Path
 
 from pytest import fixture
 from usine import connect, run
+
+
+def pytest_configure(config):
+    # Make select.select happy.
+    sys.stdin = (Path(__file__).parent / 'test.txt').open()
 
 
 @fixture(scope='module')

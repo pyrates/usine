@@ -1,13 +1,16 @@
 import inspect
 import os
+import select
 import string
 import sys
+import time
 from contextlib import contextmanager
 from getpass import getuser
 from hashlib import md5
 from io import BytesIO, StringIO
 from pathlib import Path
 
+import paramiko
 import yaml
 from paramiko.client import SSHClient, WarningPolicy
 from paramiko.config import SSHConfig
@@ -42,6 +45,8 @@ class Config:
             return Config(default)
 
     def __getitem__(self, key):
+        if isinstance(key, int):
+            return self.value.__getitem__(key)
         return self.__getattr__(key)
 
     def __getattr__(self, key):
@@ -209,6 +214,7 @@ class Client:
         self._transport = self._client.get_transport()
 
     def close(self):
+        print(f'\nDisconnecting from {self.username}@{self.hostname}')
         self._client.close()
 
     def parse_host(self, host_string):
@@ -246,25 +252,50 @@ class Client:
         if self.screen:
             cmd = f'screen -dUS {self.screen} -m {cmd}'
         print(gray(cmd))
+        try:
+            size = os.get_terminal_size()
+        except IOError:
+            channel.get_pty()  # Fails when ran from pytest.
+        else:
+            channel.get_pty(width=size.columns, height=size.lines)
         channel.exec_command(cmd)
+        channel.setblocking(False)  # Allow to read from empty buffer.
         stdout = channel.makefile('r', -1)
         stderr = channel.makefile_stderr('r', -1)
-        proxy_stdout = ''
+        proxy_stdout = b''
         buf = b''
         while True:
-            data = stdout.read(1)
-            if not data:
-                if buf:
-                    proxy_stdout += buf.decode()
+            while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                line = sys.stdin.readline()
+                if line:
+                    channel.sendall(line)
+                else:
+                    break
+            if not channel.recv_ready():
+                if buf:  # We may have read some buffer yet, let's output it.
                     sys.stdout.write(buf.decode())
-                break
-            buf += data
-            if buf.endswith(b'\n'):
-                proxy_stdout += buf.decode()
-                sys.stdout.write(buf.decode())
-                buf = b''
-        ret = Status(proxy_stdout, stderr.read().decode().strip(),
+                    sys.stdout.flush()
+                    buf = b''
+                if channel.exit_status_ready():
+                    break
+                continue
+            try:
+                data = stdout.read(1)
+            except Exception:  # Not sure how to catch socket.timeout properly.
+                pass
+            else:
+                proxy_stdout += data
+                buf += data
+                if data == b'\n':
+                    sys.stdout.write(buf.decode())
+                    sys.stdout.flush()
+                    buf = b''
+                continue
+            time.sleep(paramiko.io_sleep)
+        channel.setblocking(True)  # Make sure we now wait for stderr.
+        ret = Status(proxy_stdout.decode(), stderr.read().decode().strip(),
                      channel.recv_exit_status())
+        # channel.send('\x03')
         channel.close()
         if ret.code:
             print(red(ret.stderr))

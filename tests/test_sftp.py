@@ -28,12 +28,12 @@ def test_put_stringio(connection):
 def test_put_path(connection):
     remote = '/tmp/usinetestput'
     put(Path(__file__).parent / 'test.txt', remote)
-    assert run(f'cat {remote}').stdout == 'foobarœé\n'
+    assert run(f'cat {remote}').stdout == 'foobarœé\r\n'
     run(f'rm {remote}')
 
 
 def test_put_path_as_string(connection):
     remote = '/tmp/usinetestput'
     put(str(Path(__file__).parent / 'test.txt'), remote)
-    assert run(f'cat {remote}').stdout == 'foobarœé\n'
+    assert run(f'cat {remote}').stdout == 'foobarœé\r\n'
     run(f'rm {remote}')

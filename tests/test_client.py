@@ -4,7 +4,7 @@ from usine import cd, cp, env, exists, ls, mkdir, mv, run
 
 def test_simple_run(connection):
     res = run('echo pouet')
-    assert res.stdout == 'pouet\n'
+    assert res.stdout == 'pouet\r\n'
 
 
 def test_folder_creation_existence_and_deletion(connection):
@@ -113,10 +113,10 @@ def test_ls(connection, capsys):
 def test_env():
     with env(FOO='pouet'):
         res = run('echo $FOO')
-    assert res.stdout == 'pouet\n'
+    assert res.stdout == 'pouet\r\n'
 
 
 def test_cd():
     with cd('/tmp'):
         res = run('pwd')
-    assert res.stdout == '/tmp\n'
+    assert res.stdout == '/tmp\r\n'

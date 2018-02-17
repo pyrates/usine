@@ -38,6 +38,11 @@ def with_screen(name='usine'):
         run('ping 8.8.8.8')
 
 
+@minicli.cli
+def python():
+    run('python')
+
+
 if __name__ == '__main__':
     with connect('woodland'):
         minicli.run()
