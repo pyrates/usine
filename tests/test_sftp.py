@@ -1,7 +1,7 @@
 from io import BytesIO, StringIO
 from pathlib import Path
 
-from usine import put, run
+from usine import put, run, cd
 
 
 def test_put_bytesio(connection):
@@ -37,3 +37,11 @@ def test_put_path_as_string(connection):
     put(str(Path(__file__).parent / 'test.txt'), remote)
     assert run(f'cat {remote}').stdout == 'foobarœé\r\n'
     run(f'rm {remote}')
+
+
+def test_put_with_cd(connection):
+    remote = 'usinetestput'
+    with cd('/tmp'):
+        put(str(Path(__file__).parent / 'test.txt'), remote)
+        assert run(f'cat {remote}').stdout == 'foobarœé\r\n'
+        run(f'rm {remote}')

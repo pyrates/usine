@@ -372,6 +372,8 @@ def cp(src, dest, interactive=False, recursive=True, link=False, update=False):
 
 def put(local, remote, force=False):
     user = client.context.get('user')
+    if client.cd:
+        remote = Path(client.cd) / remote
     if not hasattr(local, 'read'):
         local = Path(local)
         if local.is_dir():
