@@ -14,6 +14,6 @@ def pytest_configure(config):
 @fixture(scope='module')
 def connection():
     with connect(hostname=os.environ.get('USINE_TEST_HOST')):
-        run('useradd -N usinetest -d /srv/tilery/')
+        run('useradd -N usinetest -d /srv/tilery/ || echo "usinetest exists"')
         yield
         run('userdel usinetest')
