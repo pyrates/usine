@@ -251,13 +251,14 @@ class Client:
         cmd = self.format(f"{prefix} sh -c '{cmd}'")
         if self.screen:
             cmd = f'screen -dUS {self.screen} -m {cmd}'
-        print(gray(cmd))
-        try:
-            size = os.get_terminal_size()
-        except IOError:
-            channel.get_pty()  # Fails when ran from pytest.
         else:
-            channel.get_pty(width=size.columns, height=size.lines)
+            try:
+                size = os.get_terminal_size()
+            except IOError:
+                channel.get_pty()  # Fails when ran from pytest.
+            else:
+                channel.get_pty(width=size.columns, height=size.lines)
+        print(gray(cmd))
         channel.exec_command(cmd)
         channel.setblocking(False)  # Allow to read from empty buffer.
         stdout = channel.makefile('r', -1)
