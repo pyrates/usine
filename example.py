@@ -33,9 +33,9 @@ def put_file():
 
 
 @minicli.cli
-def with_screen(name='usine'):
+def with_screen(name='usine', target='8.8.8.8'):
     with screen(name):
-        run('ping 8.8.8.8')
+        run(f'ping {target}')
 
 
 @minicli.cli

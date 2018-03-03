@@ -248,17 +248,15 @@ class Client:
             prefix = ' '.join(f'{k}={v}' for k, v in self.env.items())
         if self.sudo:
             prefix = f'{self.sudo} {prefix}'
-        # https://unix.stackexchange.com/questions/30903/how-to-escape-quotes-in-shell
         cmd = self.format(f"{prefix} sh -c $'{cmd}'")
         if self.screen:
-            cmd = f'screen -dUS {self.screen} -m {cmd}'
+            cmd = f'screen -UD -RR -S {self.screen} {cmd}'
+        try:
+            size = os.get_terminal_size()
+        except IOError:
+            channel.get_pty()  # Fails when ran from pytest.
         else:
-            try:
-                size = os.get_terminal_size()
-            except IOError:
-                channel.get_pty()  # Fails when ran from pytest.
-            else:
-                channel.get_pty(width=size.columns, height=size.lines)
+            channel.get_pty(width=size.columns, height=size.lines)
         print(gray(cmd))
         channel.exec_command(cmd)
         channel.setblocking(False)  # Allow to read from empty buffer.
