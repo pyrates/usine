@@ -248,7 +248,7 @@ class Client:
             prefix = ' '.join(f'{k}={v}' for k, v in self.env.items())
         if self.sudo:
             prefix = f'{self.sudo} {prefix}'
-        cmd = self.format(f"{prefix} sh -c '{cmd}'")
+        cmd = self.format(f"{prefix} sh -c $'{cmd}'")
         if self.screen:
             cmd = f'screen -dUS {self.screen} -m {cmd}'
         else:

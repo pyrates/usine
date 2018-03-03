@@ -120,3 +120,14 @@ def test_cd():
     with cd('/tmp'):
         res = run('pwd')
     assert res.stdout == '/tmp\r\n'
+
+
+def test_quoting(connection):
+    res = run('echo "pouet"')
+    assert res.stdout == 'pouet\r\n'
+    res = run('''echo "pouet with \\'quotes\\'"''')
+    assert res.stdout == '''pouet with 'quotes'\r\n'''
+    res = run('echo "pouet with \\\'quotes\\\'"')
+    assert res.stdout == '''pouet with 'quotes'\r\n'''
+    res = run("echo \"pouet with \\'quotes\\'\"")
+    assert res.stdout == '''pouet with 'quotes'\r\n'''
