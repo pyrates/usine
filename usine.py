@@ -248,6 +248,7 @@ class Client:
             prefix = ' '.join(f'{k}={v}' for k, v in self.env.items())
         if self.sudo:
             prefix = f'{self.sudo} {prefix}'
+        # https://unix.stackexchange.com/questions/30903/how-to-escape-quotes-in-shell
         cmd = self.format(f"{prefix} sh -c $'{cmd}'")
         if self.screen:
             cmd = f'screen -dUS {self.screen} -m {cmd}'
@@ -420,9 +421,21 @@ def put(local, remote, force=False):
 
 
 def get(remote, local):
-    bar = ProgressBar(prefix=f'{remote} => {local}')
-    func = client.sftp.getfo if hasattr(local, 'write') else client.sftp.get
-    func(remote, local, lambda done, total: bar.update(done=done, total=total))
+    if client.cd:
+        remote = Path(client.cd) / remote
+    if hasattr(local, 'read'):
+        func = client.sftp.getfo
+        bar = ProgressBar(prefix=f'Reading from {remote}',
+                          animation='{spinner}',
+                          template='{prefix} {animation} {done:B}')
+    else:
+        bar = ProgressBar(prefix=f'{remote} => {local}')
+        func = client.sftp.get
+    func(str(remote), local,
+         callback=lambda done, total: bar.update(done=done, total=total))
+    if hasattr(local, 'read'):
+        local.seek(0)
+        bar.finish()
 
 
 @contextmanager
