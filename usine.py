@@ -427,7 +427,9 @@ def get(remote, local):
                           animation='{spinner}',
                           template='{prefix} {animation} {done:B}')
     else:
-        bar = ProgressBar(prefix=f'{remote} => {local}')
+        bar = ProgressBar(prefix=f'{remote} => {local}',
+                          template='{prefix} {animation} {percent} '
+                                   '({done:B}/{total:B}) ETA: {eta}')
         func = client.sftp.get
     func(str(remote), local,
          callback=lambda done, total: bar.update(done=done, total=total))
