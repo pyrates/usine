@@ -9,6 +9,15 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+
+def is_pkg(line):
+    return line and not line.startswith(('--', 'git', '#'))
+
+
+with open('requirements.txt', encoding='utf-8') as reqs:
+    install_requires = [l for l in reqs.read().split('\n') if is_pkg(l)]
+
+
 VERSION = (0, 1, 0)
 
 __author__ = 'Pyrates'
@@ -36,6 +45,7 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     keywords='ssh deployment',
+    install_requires=install_requires,
     packages=find_packages(exclude=['tests']),
     extras_require={'test': ['pytest'], 'docs': 'mkdocs'},
     include_package_data=True,
