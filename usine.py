@@ -93,10 +93,13 @@ class Template(string.Template):
     delimiter = '$$'
 
 
-def template(path, **context):
-    with Path(path).open() as f:
-        template = Template(f.read())
-        return StringIO(template.substitute(**context))
+def template(source, **context):
+    if hasattr(source, 'read'):
+        template = Template(source.read())
+    else:
+        with Path(source).open() as f:
+            template = Template(f.read())
+    return StringIO(template.substitute(**context))
 
 
 class Formatter(string.Formatter):
