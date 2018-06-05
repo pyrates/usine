@@ -190,11 +190,10 @@ class Client:
         hostname = parsed.get('hostname')
         username = parsed.get('username')
         if configpath:
-            with Path(configpath).open() as fd:
-                yaml_conf = yaml.load(fd)
-                if hostname in yaml_conf:
-                    yaml_conf.update(yaml_conf[hostname])
-                config.update(yaml_conf)
+            if not isinstance(configpath, (list, tuple)):
+                configpath = [configpath]
+            for path in configpath:
+                self._load_config(path, hostname)
         with (Path.home() / '.ssh/config').open() as fd:
             ssh_config.parse(fd)
         ssh_config = ssh_config.lookup(hostname)
@@ -219,6 +218,13 @@ class Client:
     def close(self):
         print(f'\nDisconnecting from {self.username}@{self.hostname}')
         self._client.close()
+
+    def _load_config(self, path, hostname):
+        with Path(path).open() as fd:
+            conf = yaml.load(fd)
+            if hostname in conf:
+                conf.update(conf[hostname])
+            config.update(conf)
 
     def parse_host(self, host_string):
         user_hostport = host_string.rsplit('@', 1)
