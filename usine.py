@@ -200,7 +200,7 @@ class Client:
 
     context = {}
 
-    def __init__(self, hostname, configpath=None):
+    def __init__(self, hostname, configpath=None, dry_run=False):
         ssh_config = SSHConfig()
         if not hostname:
             print(red('"hostname" must be defined'))
@@ -216,6 +216,7 @@ class Client:
         with (Path.home() / '.ssh/config').open() as fd:
             ssh_config.parse(fd)
         ssh_config = ssh_config.lookup(hostname)
+        self.dry_run = dry_run
         self.hostname = ssh_config['hostname']
         self.username = username or ssh_config.get('user', getuser())
         self.open()
@@ -335,6 +336,8 @@ class Client:
     def __call__(self, cmd, **kwargs):
         cmd = self._build_command(cmd, **kwargs)
         print(gray(cmd))
+        if self.dry_run:
+            return Status('¡DRY RUN!', '¡DRY RUN!', 0)
         with character_buffered():
             return self._call_command(cmd, **kwargs)
 
@@ -378,7 +381,7 @@ def exists(path):
         run(f'test -e {path}')
     except SystemExit:
         return False
-    return True
+    return not client.dry_run
 
 
 @formattable
@@ -438,6 +441,9 @@ def put(local, remote, force=False):
     else:
         bar = ProgressBar(prefix=f'{local} => {remote}')
         func = client.sftp.put
+    if client.dry_run:
+        print(bar.prefix)
+        return
     tmp = str(Path('/tmp') / md5(str(remote).encode()).hexdigest())
     try:
         func(local, tmp,

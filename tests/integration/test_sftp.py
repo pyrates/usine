@@ -2,7 +2,8 @@ from io import BytesIO, StringIO
 from pathlib import Path
 
 import pytest
-from usine import cd, get, put, run
+import usine
+from usine import cd, get, put, run, exists
 
 
 @pytest.fixture(scope='module')
@@ -74,3 +75,11 @@ def test_get_with_cd(remotefile):
         data = BytesIO()
         get('usinetestget', data)
         assert data.read().decode() == 'foobarééœ'
+
+
+def test_dry_run(connection):
+    remote = '/tmp/usinetestdryrun'
+    usine.client.dry_run = True
+    put(Path(__file__).parent / 'test.txt', remote)
+    usine.client.dry_run = False
+    assert not exists(remote)

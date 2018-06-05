@@ -1,4 +1,5 @@
 import pytest
+import usine
 from usine import cd, cp, env, exists, ls, mkdir, mv, run
 
 
@@ -131,3 +132,13 @@ def test_quoting(connection):
     assert res.stdout == '''pouet with 'quotes'\r\n'''
     res = run("echo \"pouet with \\'quotes\\'\"")
     assert res.stdout == '''pouet with 'quotes'\r\n'''
+
+
+def test_dry_run(connection):
+    path = '/tmp/usinetestfile'
+    run(f'rm {path} || exit 0')
+    assert not exists(path)
+    usine.client.dry_run = True
+    run(f'touch {path}')
+    usine.client.dry_run = False
+    assert not exists(path)
