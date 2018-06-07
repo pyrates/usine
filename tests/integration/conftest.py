@@ -6,6 +6,12 @@ from pytest import fixture
 from usine import connect, run
 
 
+def pytest_ignore_collect():
+    if not os.environ.get('USINE_TEST_HOST'):
+        print('USINE_TEST_HOST is not defined: excluding integrations tests')
+        return True
+
+
 def pytest_configure(config):
     # Make select.select happy.
     sys.stdin = (Path(__file__).parent / 'test.txt').open()

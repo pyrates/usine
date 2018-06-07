@@ -199,9 +199,6 @@ class Client:
         ssh_config = ssh_config.lookup(hostname)
         self.hostname = ssh_config['hostname']
         self.username = username or ssh_config.get('user', getuser())
-        self._client = SSHClient()
-        self._client.load_system_host_keys()
-        self._client.set_missing_host_key_policy(WarningPolicy())
         self.open()
         self.formatter = Formatter()
         self.sudo = ''
@@ -211,6 +208,9 @@ class Client:
         self._sftp = None
 
     def open(self):
+        self._client = SSHClient()
+        self._client.load_system_host_keys()
+        self._client.set_missing_host_key_policy(WarningPolicy())
         print(f'Connecting to {self.username}@{self.hostname}')
         self._client.connect(hostname=self.hostname, username=self.username)
         self._transport = self._client.get_transport()
@@ -248,8 +248,7 @@ class Client:
 
         return {'username': user, 'hostname': host, 'port': port}
 
-    def execute(self, cmd, **kwargs):
-        channel = self._transport.open_session()
+    def _build_command(self, cmd, **kwargs):
         prefix = ''
         if self.cd:
             cmd = f'cd {self.cd}; {cmd}'
@@ -260,13 +259,16 @@ class Client:
         cmd = self.format(f"{prefix} sh -c $'{cmd}'")
         if self.screen:
             cmd = f'screen -UD -RR -S {self.screen} {cmd}'
+        return cmd.strip().replace('  ',  ' ')
+
+    def _call_command(self, cmd, **kwargs):
+        channel = self._transport.open_session()
         try:
             size = os.get_terminal_size()
         except IOError:
             channel.get_pty()  # Fails when ran from pytest.
         else:
             channel.get_pty(width=size.columns, height=size.lines)
-        print(gray(cmd))
         channel.exec_command(cmd)
         channel.setblocking(False)  # Allow to read from empty buffer.
         stdout = channel.makefile('r', -1)
@@ -311,6 +313,11 @@ class Client:
             sys.exit(ret.code)
         return ret
 
+    def __call__(self, cmd, **kwargs):
+        cmd = self._build_command(cmd, **kwargs)
+        print(gray(cmd))
+        return self._call_command(cmd, **kwargs)
+
     def format(self, tpl):
         try:
             return self.formatter.vformat(tpl, None, self.context)
@@ -334,7 +341,8 @@ def connect(*args, **kwargs):
 
 def enter(*args, **kwargs):
     global client
-    client = Client(*args, **kwargs)
+    klass = kwargs.pop('client', Client)
+    client = klass(*args, **kwargs)
 
 
 def exit():
@@ -342,7 +350,7 @@ def exit():
 
 
 def run(cmd):
-    return client.execute(cmd)
+    return client(cmd)
 
 
 def exists(path):
