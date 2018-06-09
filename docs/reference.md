@@ -73,7 +73,7 @@ This is the main helper, which basically runs any command on the remote server.
 
 - **cmd**: the actual command to be run
 
-Returns as `Status` instance.
+Returns a `Status` instance.
 
 ## exists(path)
 

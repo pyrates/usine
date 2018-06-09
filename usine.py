@@ -3,6 +3,8 @@ import os
 import select
 import string
 import sys
+import termios
+import tty
 import time
 from contextlib import contextmanager
 from getpass import getuser
@@ -17,6 +19,23 @@ from paramiko.config import SSHConfig
 from progressist import ProgressBar
 
 client = None
+
+
+@contextmanager
+def character_buffered():
+    """
+    Force local terminal ``sys.stdin`` be character, not line, buffered.
+    C/P from Invoke.
+    """
+    if not sys.stdin.isatty():  # w/ pytest?
+        yield
+        return
+    old_settings = termios.tcgetattr(sys.stdin)
+    tty.setcbreak(sys.stdin)
+    try:
+        yield
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 def gray(s):
@@ -277,9 +296,10 @@ class Client:
         buf = b''
         while True:
             while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                line = sys.stdin.readline()
-                if line:
-                    channel.sendall(line)
+                # TODO compute bytes_to_read like in invoke?
+                data = sys.stdin.read(1)
+                if data:
+                    channel.sendall(data)
                 else:
                     break
             if not channel.recv_ready():
@@ -306,7 +326,6 @@ class Client:
         channel.setblocking(True)  # Make sure we now wait for stderr.
         ret = Status(proxy_stdout.decode(), stderr.read().decode().strip(),
                      channel.recv_exit_status())
-        # channel.send('\x03')
         channel.close()
         if ret.code:
             print(red(ret.stderr))
@@ -316,7 +335,8 @@ class Client:
     def __call__(self, cmd, **kwargs):
         cmd = self._build_command(cmd, **kwargs)
         print(gray(cmd))
-        return self._call_command(cmd, **kwargs)
+        with character_buffered():
+            return self._call_command(cmd, **kwargs)
 
     def format(self, tpl):
         try:
