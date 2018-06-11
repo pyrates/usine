@@ -27,7 +27,7 @@ print(config.property)
 
 ## Status
 
-A command return status. You can print it to get the command output or test it
+A command status. You can print it to get the command output or test it
 in a boolean context to check its exit code.
 
 ```python
@@ -43,14 +43,14 @@ if not status:
 
 ## enter
 
-Creates the `client` singleton, which in turns initiate the SSH connection.
+Create the `client` singleton, which will initiate the SSH connection.
 
 It takes the same arguments as the `Client`, plus an optionnal `client` kwarg
 that you can use to define the `Client` class to be instantiated.
 
 ## exit
 
-Closes the SSH connection.
+Close the SSH connection.
 
 ## connect
 
@@ -73,7 +73,7 @@ This is the main helper, which basically runs any command on the remote server.
 
 - **cmd**: the actual command to be run
 
-Returns a `Status` instance.
+Return a `Status` instance.
 
 ## exists(path)
 
@@ -164,6 +164,9 @@ Send a local file or directory to the remote server.
 ## get(remote, local)
 
 Fetch a remote file.
+
+##### Arguments
+
 - **local**: a reference to a file (can be a `pathlib.Path` instance, a `str`
   or a `io.BytesIO` instance)
 - **remote**: the remote path
@@ -178,13 +181,13 @@ Run the command in a `sudo` context. See `man sudo` for more info about using
 
 ##### Arguments
 
-- **set_home** (default: True): Request that the security policy set the HOME
+- **set_home** (default: True): request that the security policy set the HOME
   environment variable to the home directory specified by the target user's
-  password database entry.
+  password database entry
 - **preserve_env** (default: True): preserve environment variable
 - **user** (default: None): run the command as this user
-- **login** (default: None): Run the shell specified by the target user's
-  password database entry as a login shell.
+- **login** (default: None): run the shell specified by the target user's
+  password database entry as a login shell
 
 
 ## cd(path)
