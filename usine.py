@@ -3,6 +3,8 @@ import os
 import select
 import string
 import sys
+import termios
+import tty
 import time
 from contextlib import contextmanager
 from getpass import getuser
@@ -17,6 +19,23 @@ from paramiko.config import SSHConfig
 from progressist import ProgressBar
 
 client = None
+
+
+@contextmanager
+def character_buffered():
+    """
+    Force local terminal ``sys.stdin`` be character, not line, buffered.
+    C/P from Invoke.
+    """
+    if not sys.stdin.isatty():  # w/ pytest?
+        yield
+        return
+    old_settings = termios.tcgetattr(sys.stdin)
+    tty.setcbreak(sys.stdin)
+    try:
+        yield
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 def gray(s):
@@ -190,19 +209,15 @@ class Client:
         hostname = parsed.get('hostname')
         username = parsed.get('username')
         if configpath:
-            with Path(configpath).open() as fd:
-                yaml_conf = yaml.load(fd)
-                if hostname in yaml_conf:
-                    yaml_conf.update(yaml_conf[hostname])
-                config.update(yaml_conf)
+            if not isinstance(configpath, (list, tuple)):
+                configpath = [configpath]
+            for path in configpath:
+                self._load_config(path, hostname)
         with (Path.home() / '.ssh/config').open() as fd:
             ssh_config.parse(fd)
         ssh_config = ssh_config.lookup(hostname)
         self.hostname = ssh_config['hostname']
         self.username = username or ssh_config.get('user', getuser())
-        self._client = SSHClient()
-        self._client.load_system_host_keys()
-        self._client.set_missing_host_key_policy(WarningPolicy())
         self.open()
         self.formatter = Formatter()
         self.sudo = ''
@@ -212,6 +227,9 @@ class Client:
         self._sftp = None
 
     def open(self):
+        self._client = SSHClient()
+        self._client.load_system_host_keys()
+        self._client.set_missing_host_key_policy(WarningPolicy())
         print(f'Connecting to {self.username}@{self.hostname}')
         self._client.connect(hostname=self.hostname, username=self.username)
         self._transport = self._client.get_transport()
@@ -219,6 +237,13 @@ class Client:
     def close(self):
         print(f'\nDisconnecting from {self.username}@{self.hostname}')
         self._client.close()
+
+    def _load_config(self, path, hostname):
+        with Path(path).open() as fd:
+            conf = yaml.load(fd)
+            if hostname in conf:
+                conf.update(conf[hostname])
+            config.update(conf)
 
     def parse_host(self, host_string):
         user_hostport = host_string.rsplit('@', 1)
@@ -242,8 +267,7 @@ class Client:
 
         return {'username': user, 'hostname': host, 'port': port}
 
-    def execute(self, cmd, **kwargs):
-        channel = self._transport.open_session()
+    def _build_command(self, cmd, **kwargs):
         prefix = ''
         if self.cd:
             cmd = f'cd {self.cd}; {cmd}'
@@ -254,13 +278,16 @@ class Client:
         cmd = self.format(f"{prefix} sh -c $'{cmd}'")
         if self.screen:
             cmd = f'screen -UD -RR -S {self.screen} {cmd}'
+        return cmd.strip().replace('  ',  ' ')
+
+    def _call_command(self, cmd, **kwargs):
+        channel = self._transport.open_session()
         try:
             size = os.get_terminal_size()
         except IOError:
             channel.get_pty()  # Fails when ran from pytest.
         else:
             channel.get_pty(width=size.columns, height=size.lines)
-        print(gray(cmd))
         channel.exec_command(cmd)
         channel.setblocking(False)  # Allow to read from empty buffer.
         stdout = channel.makefile('r', -1)
@@ -269,9 +296,10 @@ class Client:
         buf = b''
         while True:
             while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                line = sys.stdin.readline()
-                if line:
-                    channel.sendall(line)
+                # TODO compute bytes_to_read like in invoke?
+                data = sys.stdin.read(1)
+                if data:
+                    channel.sendall(data)
                 else:
                     break
             if not channel.recv_ready():
@@ -298,12 +326,17 @@ class Client:
         channel.setblocking(True)  # Make sure we now wait for stderr.
         ret = Status(proxy_stdout.decode(), stderr.read().decode().strip(),
                      channel.recv_exit_status())
-        # channel.send('\x03')
         channel.close()
         if ret.code:
             print(red(ret.stderr))
             sys.exit(ret.code)
         return ret
+
+    def __call__(self, cmd, **kwargs):
+        cmd = self._build_command(cmd, **kwargs)
+        print(gray(cmd))
+        with character_buffered():
+            return self._call_command(cmd, **kwargs)
 
     def format(self, tpl):
         try:
@@ -328,7 +361,8 @@ def connect(*args, **kwargs):
 
 def enter(*args, **kwargs):
     global client
-    client = Client(*args, **kwargs)
+    klass = kwargs.pop('client', Client)
+    client = klass(*args, **kwargs)
 
 
 def exit():
@@ -336,7 +370,7 @@ def exit():
 
 
 def run(cmd):
-    return client.execute(cmd)
+    return client(cmd)
 
 
 def exists(path):

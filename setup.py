@@ -30,6 +30,7 @@ setup(
     version=__version__,
     description=__doc__,
     long_description=long_description,
+    long_description_content_type='text/markdown',
     url=__homepage__,
     author=__author__,
     author_email=__contact__,
@@ -37,7 +38,7 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         'Intended Audience :: Developers',
 
