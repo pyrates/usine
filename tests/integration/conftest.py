@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from pytest import fixture
-from usine import connect, run
+from usine import connect, run, sudo
 
 
 def pytest_ignore_collect():
@@ -20,6 +20,8 @@ def pytest_configure(config):
 @fixture(scope='module')
 def connection():
     with connect(hostname=os.environ.get('USINE_TEST_HOST')):
-        run('useradd -N usinetest -d /srv/tilery/ || echo "usinetest exists"')
-        yield
-        run('userdel usinetest')
+        with sudo():
+            run('useradd -N usinetest -d /srv/usine/ '
+                '|| echo "usinetest exists"')
+            yield
+            run('userdel usinetest')
