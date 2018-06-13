@@ -55,7 +55,7 @@ And now you can run it like this:
     myscript.py foo --force
 
 If you want to expose the hostname in the command line (or any other global
-variable like the `confipath`), here is a bit more complete example:
+variable like the `configpath`), here is a more complete example:
 
 
 ```python
