@@ -1,4 +1,4 @@
-# How to guides
+# How-to guides
 
 ## How to run a command with sudo
 

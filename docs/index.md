@@ -14,6 +14,12 @@ to stay on your way.
 - exposes some pythonic helpers to manage env vars, sudo and such
 
 
+## Install
+
+
+    pip install usine
+
+
 ## Example
 
 Here is what a very basic script would look like:
