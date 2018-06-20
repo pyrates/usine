@@ -43,6 +43,11 @@ def python():
     run('python')
 
 
+@minicli.wrap
+def wrapper(hostname, dry_run):
+    with connect(hostname=hostname, dry_run=dry_run):
+        yield
+
+
 if __name__ == '__main__':
-    with connect('usine'):
-        minicli.run()
+    minicli.run(hostname='usine', dry_run=False)
