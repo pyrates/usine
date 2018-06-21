@@ -189,6 +189,9 @@ class Status:
         self.stdout = stdout
         self.code = exit_status
 
+    def __contains__(self, other):
+        return other in self.stdout
+
     def __str__(self):
         return self.stdout
 
