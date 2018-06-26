@@ -220,22 +220,32 @@ class Client:
             ssh_config.parse(fd)
         ssh_config = ssh_config.lookup(hostname)
         self.dry_run = dry_run
-        self.hostname = ssh_config['hostname']
-        self.username = username or ssh_config.get('user', getuser())
-        self.open()
+        self.hostname = str(config.hostname or ssh_config['hostname'])
+        self.username = str(username or config.username
+                            or ssh_config.get('user', getuser()))
         self.formatter = Formatter()
         self.sudo = ''
         self.cd = None
         self.screen = None
         self.env = {}
         self._sftp = None
+        self.proxy_command = config.proxy_command or None
+        self.open()
 
     def open(self):
         self._client = SSHClient()
         self._client.load_system_host_keys()
         self._client.set_missing_host_key_policy(WarningPolicy())
         print(f'Connecting to {self.username}@{self.hostname}')
-        self._client.connect(hostname=self.hostname, username=self.username)
+        if self.proxy_command:
+            print('ProxyCommand:', self.proxy_command)
+        sock = (paramiko.ProxyCommand(str(self.proxy_command))
+                if self.proxy_command else None)
+        try:
+            self._client.connect(hostname=self.hostname,
+                                 username=self.username, sock=sock)
+        except paramiko.ssh_exception.BadHostKeyException:
+            sys.exit('Connection error: bad host key')
         self._transport = self._client.get_transport()
 
     def close(self):
