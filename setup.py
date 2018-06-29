@@ -47,7 +47,7 @@ setup(
     ],
     keywords='ssh deployment',
     install_requires=install_requires,
-    packages=find_packages(exclude=['tests']),
+    py_modules=['usine'],
     extras_require={'test': ['pytest'], 'docs': 'mkdocs'},
     include_package_data=True,
 )
