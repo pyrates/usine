@@ -229,7 +229,8 @@ class Client:
         self.screen = None
         self.env = {}
         self._sftp = None
-        self.proxy_command = config.proxy_command or None
+        self.proxy_command = ssh_config.get('proxycommand',
+                                            config.proxy_command)
         self.open()
 
     def open(self):
