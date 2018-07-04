@@ -13,8 +13,7 @@ def test_config_should_proxy_dict():
 def test_config_should_swallow_missing_keys():
     config = Config()
     assert not config
-    assert not config.missing
-    assert not config.missing.again
+    assert config.missing is None
 
 
 def test_config_setattr():

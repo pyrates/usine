@@ -50,58 +50,17 @@ class RemoteError(Exception):
     pass
 
 
-class Config:
-
-    def __init__(self, value=None):
-        if isinstance(value, Config):
-            value = value.value
-        super().__setattr__('value', value or {})
-
-    def get(self, key, default=None):
-        try:
-            return Config(self.value.get(key, default))
-        except AttributeError:
-            return Config(default)
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return self.value.__getitem__(key)
-        return self.__getattr__(key)
+class Config(dict):
 
     def __getattr__(self, key):
-        try:
-            return Config(self.value.get(key))
-        except AttributeError:
-            return Config()
+        value = self.get(key)
+        # Allow to chain getattr (eg. config.foo.bar)
+        if isinstance(value, dict):
+            value = Config(value)
+        return value
 
     def __setattr__(self, key, value):
-        self.value[key] = value
-
-    def __str__(self):
-        return str(self.value)
-
-    def __eq__(self, other):
-        return other == self.value
-
-    # https://eev.ee/blog/2012/03/24/python-faq-equality/
-    # No way to override "is" behaviour, so no way to do "config.key is None"…
-    def __bool__(self):
-        return bool(self.value)
-
-    def __hash__(self):
-        return hash(self.value)
-
-    def __iter__(self):
-        return iter(self.value)
-
-    def items(self):
-        return self.value.items()
-
-    def update(self, other):
-        self.value.update(other)
-
-    def keys(self):
-        return self.value.keys()
+        self[key] = value
 
 
 config = Config()  # singleton.
