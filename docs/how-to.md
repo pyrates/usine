@@ -82,3 +82,18 @@ if __name__ == '__main__':
 And you can run it like this:
 
     myscript.py foo --force --hostname production
+
+
+# How to use proxy command
+
+You can define a SSH proxy command through the config:
+
+```yml
+proxy_command: ssh -q user@bastion -W remote_host:22
+username: remote_user
+hostname: remote_host
+```
+
+This will connect to `remote_host` through `bastion` host.
+Note: when using `proxy_command`, `username` and `hostname` should reflect the
+host and user of the target machine (not the proxy server).
