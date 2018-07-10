@@ -2,7 +2,7 @@
 from codecs import open  # To use a consistent encoding
 from os import path
 
-from setuptools import find_packages, setup
+from setuptools import setup
 
 here = path.abspath(path.dirname(__file__))
 
@@ -18,7 +18,7 @@ with open('requirements.txt', encoding='utf-8') as reqs:
     install_requires = [l for l in reqs.read().split('\n') if is_pkg(l)]
 
 
-VERSION = (0, 1, 0)
+VERSION = (0, 2, 0)
 
 __author__ = 'Pyrates'
 __contact__ = "yohan.boniface@data.gouv.fr"
@@ -44,6 +44,7 @@ setup(
 
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     keywords='ssh deployment',
     install_requires=install_requires,
