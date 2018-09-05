@@ -18,7 +18,7 @@ with open('requirements.txt', encoding='utf-8') as reqs:
     install_requires = [l for l in reqs.read().split('\n') if is_pkg(l)]
 
 
-VERSION = (0, 2, 0)
+VERSION = (0, 2, 1)
 
 __author__ = 'Pyrates'
 __contact__ = "yohan.boniface@data.gouv.fr"
