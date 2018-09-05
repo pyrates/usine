@@ -1,6 +1,8 @@
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 from usine import template
 
 
@@ -32,3 +34,8 @@ def test_in_a_middle_of_a_string():
 def test_with_non_identifier_bracket():
     assert template(StringIO('A ${what}ever.'), what='text').read() == \
         'A ${what}ever.'
+
+
+def test_with_file_not_found():
+    with pytest.raises(SystemExit):
+        template('tests/notfound.txt', what='text')

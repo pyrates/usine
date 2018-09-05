@@ -75,7 +75,10 @@ def template(source, **context):
     if hasattr(source, 'read'):
         template = Template(source.read())
     else:
-        with Path(source).open() as f:
+        path = Path(source)
+        if not path.exists():
+            client.exit(f'{path} does not exist')
+        with path.open() as f:
             template = Template(f.read())
     return StringIO(template.substitute(**context))
 
@@ -302,9 +305,12 @@ class Client:
                      channel.recv_exit_status())
         channel.close()
         if ret.code:
-            print(red(ret.stderr))
-            sys.exit(ret.code)
+            self.exit(ret.stderr, ret.code)
         return ret
+
+    def exit(self, msg, code=1):
+        print(red(msg))
+        sys.exit(code)
 
     def __call__(self, cmd, **kwargs):
         cmd = self._build_command(cmd, **kwargs)
