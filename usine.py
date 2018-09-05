@@ -183,6 +183,11 @@ class Client:
         self.username = (username or config.username
                          or ssh_config.get('user', getuser()))
         self.formatter = Formatter()
+        self.key_filenames = []
+        if config.key_filename:
+            self.key_filenames.append(config.key_filename)
+        if 'identityfile' in ssh_config:
+            self.key_filenames.extend(ssh_config['identityfile'])
         self.sudo = ''
         self.cd = None
         self.screen = None
@@ -203,7 +208,8 @@ class Client:
                 if self.proxy_command else None)
         try:
             self._client.connect(hostname=self.hostname,
-                                 username=self.username, sock=sock)
+                                 username=self.username, sock=sock,
+                                 key_filename=self.key_filenames)
         except paramiko.ssh_exception.BadHostKeyException:
             sys.exit('Connection error: bad host key')
         self._transport = self._client.get_transport()
