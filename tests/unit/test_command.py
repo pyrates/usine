@@ -54,3 +54,21 @@ def test_ls_without_all(patch_client):
 def test_ls_without_list(patch_client):
     assert usine.ls('/tmp/foo', list=False) == \
         "sh -c $'ls --all --human-readable --size /tmp/foo'"
+
+
+def test_sudo(patch_client):
+    with usine.sudo():
+        assert usine.run('whoami') == \
+            "sudo --set-home --preserve-env  sh -c $'whoami'"
+
+
+def test_sudo_user(patch_client):
+    with usine.sudo(user="me"):
+        assert usine.run('whoami') == \
+            "sudo --set-home --preserve-env --user=me --login sh -c $'whoami'"
+
+
+def test_unsudo(patch_client):
+    with usine.sudo():
+        with usine.unsudo():
+            assert usine.run('whoami') == "sh -c $'whoami'"
