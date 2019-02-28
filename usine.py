@@ -157,6 +157,9 @@ class Status:
     def __str__(self):
         return self.stdout
 
+    def __repr__(self):
+        return str(self)[:100] + "…"
+
     def __bool__(self):
         return self.code == 0
 
@@ -402,7 +405,7 @@ def put(local, remote, force=False):
     if not hasattr(local, 'read'):
         local = Path(local)
         if local.is_dir():
-            with sudo():  # Force reset to SSH user.
+            with unsudo():  # Force reset to SSH user.
                 mkdir(remote)
                 if user:
                     chown(user, remote)
@@ -440,7 +443,7 @@ def put(local, remote, force=False):
         sys.exit(1)
     if hasattr(local, 'read'):
         bar.finish()
-    with sudo():  # Force reset to SSH user.
+    with unsudo():  # Force reset to SSH user.
         mv(tmp, remote)
         if user:
             chown(user, remote)
@@ -484,6 +487,14 @@ def sudo(set_home=True, preserve_env=True, user=None, login=None):
     yield
     client.sudo = previous
     client.context = previous_context
+
+
+@contextmanager
+def unsudo():
+    previous = client.sudo
+    client.sudo = None
+    yield
+    client.sudo = previous
 
 
 @contextmanager
