@@ -148,7 +148,7 @@ Run the `cp` command on the remote server.
 
 ##### Arguments
 
-- **srv**: the path for the source
+- **src**: the path for the source
 - **dest**: the path of the destination
 - **interactive** (default: `False`): prompt before overwrite
 - **recursive** (default: `True`): copy directories recursively
