@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
 And now you can run it like this:
 
-    myscript.py foo --force
+    myscript.py mycommand --force
 
 If you want to expose the hostname in the command line (or any other global
 variable like the `configpath`), here is a more complete example:
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
 And you can run it like this:
 
-    myscript.py foo --force --hostname production
+    myscript.py mycommand --force --hostname production
 
 
 # How to use proxy command
